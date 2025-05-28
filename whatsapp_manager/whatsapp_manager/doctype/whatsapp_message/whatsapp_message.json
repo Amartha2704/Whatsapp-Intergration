@@ -1,0 +1,160 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-05-21 17:55:49.915732",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "contact_details_section",
+  "contact",
+  "source",
+  "destination",
+  "destination_name",
+  "direction",
+  "column_break_1qqyd",
+  "message_id",
+  "message_type",
+  "status",
+  "timestamp",
+  "section_break_qv8xe",
+  "message",
+  "content_section",
+  "content",
+  "media_section",
+  "media_url",
+  "media_type"
+ ],
+ "fields": [
+  {
+   "fieldname": "contact",
+   "fieldtype": "Link",
+   "label": "Contact",
+   "options": "Whatsapp Contact"
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "\nIncoming\nOutgoing"
+  },
+  {
+   "fieldname": "message_type",
+   "fieldtype": "Select",
+   "label": "Message Type",
+   "options": "\nText\nImage\nAudio\nVideo\nDocument\nLocation"
+  },
+  {
+   "fieldname": "column_break_1qqyd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "message_id",
+   "fieldtype": "Data",
+   "label": "Message ID"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "\nSent\nDelivered\nRead\nFailed\nsubmitted"
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Timestamp"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Log"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Data",
+   "label": "log"
+  },
+  {
+   "fieldname": "media_section",
+   "fieldtype": "Section Break",
+   "label": "Media"
+  },
+  {
+   "fieldname": "media_url",
+   "fieldtype": "Data",
+   "label": "Media Url"
+  },
+  {
+   "fieldname": "media_type",
+   "fieldtype": "Data",
+   "label": "Media Type"
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "source",
+   "reqd": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "destination",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "destination",
+   "options": "Whatsapp Contact",
+   "reqd": 1
+  },
+  {
+   "allow_in_quick_entry": 1,
+   "fieldname": "message",
+   "fieldtype": "Text",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "message",
+   "reqd": 1
+  },
+  {
+   "fieldname": "destination_name",
+   "fieldtype": "Data",
+   "label": "Destination Name"
+  },
+  {
+   "fieldname": "section_break_qv8xe",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "contact_details_section",
+   "fieldtype": "Section Break",
+   "label": "Contact Details"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-05-22 13:27:18.727912",
+ "modified_by": "Administrator",
+ "module": "WhatsApp Manager",
+ "name": "WhatsApp Message",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

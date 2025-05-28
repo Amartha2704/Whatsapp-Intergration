@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp - Real-time Chat</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      /* Your existing CSS styles here - keeping them the same */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+        background: #111b21;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .whatsapp-container {
+        display: flex;
+        height: 100vh;
+        background: #111b21;
+      }
+
+      /* Left Sidebar Navigation */
+      .sidebar-nav {
+        width: 70px;
+        background: #202c33;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 0;
+        border-right: 1px solid #3b4a54;
+      }
+
+      .nav-item {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 10px 0;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        color: #8696a0;
+      }
+
+      .nav-item:hover {
+        background: #3b4a54;
+      }
+
+      .nav-item.active {
+        background: #00a884;
+        color: white;
+      }
+
+      .profile-pic {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #00a884;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+
+      /* Main Content Area */
+      .main-content {
+        display: flex;
+        flex: 1;
+      }
+
+      /* Chat List Panel */
+      .chat-panel {
+        width: 400px;
+        background: #111b21;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #3b4a54;
+      }
+
+      .chat-header {
+        padding: 20px;
+        background: #202c33;
+        border-bottom: 1px solid #3b4a54;
+      }
+
+      .chat-header h1 {
+        color: #e9edef;
+        font-size: 19px;
+        font-weight: 400;
+        margin-bottom: 15px;
+      }
+
+      .search-container {
+        position: relative;
+        margin-bottom: 15px;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 8px 15px 8px 45px;
+        background: #2a3942;
+        border: none;
+        border-radius: 8px;
+        color: #e9edef;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .search-input::placeholder {
+        color: #8696a0;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #8696a0;
+      }
+
+      .filter-tabs {
+        display: flex;
+        gap: 10px;
+      }
+
+      .filter-tab {
+        padding: 6px 12px;
+        background: transparent;
+        border: none;
+        border-radius: 16px;
+        color: #8696a0;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .filter-tab.active {
+        background: #2a3942;
+        color: #00a884;
+      }
+
+      .chat-list {
+        flex: 1;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .chat-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid rgba(134, 150, 160, 0.15);
+      }
+
+      .chat-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .chat-item.active {
+        background: #2a3942;
+      }
+
+      .chat-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #00a884;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 15px;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .chat-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .chat-header-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2px;
+      }
+
+      .chat-name {
+        color: #e9edef;
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+      .chat-time {
+        color: #8696a0;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .chat-last-message {
+        color: #8696a0;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+      }
+
+      .message-status {
+        margin-right: 5px;
+        color: #53bdeb;
+      }
+
+      .unread-badge {
+        background: #00a884;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+
+      /* Chat Area */
+      .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #0b141a;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23182229' fill-opacity='0.05'%3E%3Cpolygon points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E");
+        height: 100vh;
+        max-height: 100vh;
+      }
+
+      .chat-top-bar {
+        background: #202c33;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #3b4a54;
+        flex-shrink: 0;
+      }
+
+      .chat-contact-info {
+        display: flex;
+        align-items: center;
+        flex: 1;
+      }
+
+      .chat-contact-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #00a884;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 15px;
+        cursor: pointer;
+      }
+
+      .contact-details h3 {
+        color: #e9edef;
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+      .contact-status {
+        color: #8696a0;
+        font-size: 13px;
+      }
+
+      .chat-actions {
+        display: flex;
+        gap: 20px;
+      }
+
+      .chat-action-btn {
+        background: none;
+        border: none;
+        color: #8696a0;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+      }
+
+      .chat-action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Messages Area */
+      .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        scroll-behavior: smooth;
+        position: relative;
+        height: 0;
+        min-height: 0;
+      }
+
+      .messages-area::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .messages-area::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+      }
+
+      .messages-area::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        transition: background 0.2s;
+      }
+
+      .messages-area::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .message {
+        margin-bottom: 10px;
+        display: flex;
+        animation: fadeInUp 0.3s ease-out;
+      }
+
+      .message.sent {
+        justify-content: flex-end;
+      }
+
+      .message.received {
+        justify-content: flex-start;
+      }
+
+      .message-bubble {
+        max-width: 65%;
+        padding: 6px 7px 8px 9px;
+        border-radius: 7.5px;
+        position: relative;
+        word-wrap: break-word;
+        transition: transform 0.2s ease;
+      }
+
+      .message-bubble:hover {
+        transform: scale(1.02);
+      }
+
+      .message.received .message-bubble {
+        background: #202c33;
+        color: #e9edef;
+      }
+
+      .message.sent .message-bubble {
+        background: #005c4b;
+        color: #e9edef;
+      }
+
+      .message-text {
+        font-size: 14px;
+        line-height: 1.4;
+        margin-bottom: 4px;
+      }
+
+      .message-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        margin-top: 2px;
+      }
+
+      .message-time {
+        color: #8696a0;
+        font-size: 11px;
+      }
+
+      .message-status-icon {
+        color: #53bdeb;
+        font-size: 12px;
+      }
+
+      .message-status-icon.sending {
+        color: #8696a0;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .message-status-icon.sent {
+        color: #53bdeb;
+      }
+
+      .message-status-icon.delivered {
+        color: #53bdeb;
+      }
+
+      .message-status-icon.failed {
+        color: #f44336;
+      }
+
+      /* Message Input Area */
+      .message-input-area {
+        background: #202c33;
+        padding: 20px;
+        display: flex;
+        align-items: flex-end;
+        gap: 15px;
+        flex-shrink: 0;
+        border-top: 1px solid #3b4a54;
+      }
+
+      .input-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .input-action-btn {
+        background: none;
+        border: none;
+        color: #8696a0;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+      }
+
+      .input-action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .message-input-container {
+        flex: 1;
+        position: relative;
+      }
+
+      .message-input {
+        width: 100%;
+        background: #2a3942;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 45px 11px 15px;
+        color: #e9edef;
+        font-size: 15px;
+        outline: none;
+        resize: none;
+        max-height: 100px;
+        min-height: 42px;
+      }
+
+      .message-input::placeholder {
+        color: #8696a0;
+      }
+
+      .emoji-btn {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #8696a0;
+        font-size: 20px;
+        cursor: pointer;
+      }
+
+      .send-btn {
+        background: none;
+        border: none;
+        color: #8696a0;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+      }
+
+      .send-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .send-btn.active {
+        color: #00a884;
+      }
+
+      .send-btn.sending {
+        color: #ffa726;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      /* Empty State */
+      .empty-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #8696a0;
+      }
+
+      .empty-chat i {
+        font-size: 100px;
+        margin-bottom: 30px;
+        color: #3b4a54;
+      }
+
+      .empty-chat h2 {
+        color: #e9edef;
+        font-size: 36px;
+        font-weight: 300;
+        margin-bottom: 20px;
+      }
+
+      .empty-chat p {
+        font-size: 14px;
+        line-height: 1.5;
+        max-width: 400px;
+      }
+
+      /* Loading state */
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: #8696a0;
+      }
+
+      .loading i {
+        margin-right: 10px;
+        animation: spin 1s linear infinite;
+      }
+
+      /* Refresh button */
+      .refresh-btn {
+        background: none;
+        border: none;
+        color: #8696a0;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+        margin-left: 10px;
+      }
+
+      .refresh-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #00a884;
+      }
+
+      /* Status indicator */
+      .status-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 15px;
+        border-radius: 5px;
+        color: white;
+        font-size: 14px;
+        z-index: 1000;
+        display: none;
+      }
+
+      .status-indicator.success {
+        background: #00a884;
+      }
+
+      .status-indicator.error {
+        background: #e74c3c;
+      }
+
+      .status-indicator.warning {
+        background: #ffa726;
+      }
+
+      /* New message notification */
+      .new-message-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #00a884;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: none;
+        cursor: pointer;
+        animation: slideInUp 0.3s ease;
+      }
+
+      .new-message-notification i {
+        margin-right: 8px;
+      }
+
+      /* Animations */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Online indicator */
+      .online-indicator {
+        position: relative;
+      }
+
+      .online-indicator::after {
+        content: "";
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 12px;
+        height: 12px;
+        background: #00a884;
+        border: 2px solid #202c33;
+        border-radius: 50%;
+      }
+
+      /* Real-time update indicator */
+      .update-indicator {
+        position: fixed;
+        top: 60px;
+        right: 20px;
+        background: rgba(0, 168, 132, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+        display: none;
+        animation: fadeInUp 0.3s ease;
+      }
+
+      .update-indicator.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status-indicator" id="statusIndicator"></div>
+    <div class="update-indicator" id="updateIndicator">
+      Checking for new messages...
+    </div>
+    <div class="new-message-notification" id="newMessageNotification">
+      <i class="fas fa-comment"></i>
+      <span id="notificationText">New message received</span>
+    </div>
+
+    <div class="whatsapp-container">
+      <!-- Left Sidebar Navigation -->
+      <div class="sidebar-nav">
+        <div class="profile-pic">U</div>
+        <div class="nav-item active" title="Chats">
+          <i class="fas fa-comment"></i>
+        </div>
+        <div class="nav-item" title="Status">
+          <i class="fas fa-circle"></i>
+        </div>
+        <div class="nav-item" title="Channels">
+          <i class="fas fa-bullhorn"></i>
+        </div>
+        <div class="nav-item" title="Communities">
+          <i class="fas fa-users"></i>
+        </div>
+        <div style="margin-top: auto">
+          <div class="nav-item" title="Settings">
+            <i class="fas fa-cog"></i>
+          </div>
+          <div class="nav-item" title="Profile">
+            <i class="fas fa-user"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <!-- Chat List Panel -->
+        <div class="chat-panel">
+          <div class="chat-header">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <h1>WhatsApp</h1>
+              <button class="refresh-btn" id="refreshBtn" title="Refresh Chats">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+            <div class="search-container">
+              <i class="fas fa-search search-icon"></i>
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Search or start a new chat"
+                id="searchInput"
+              />
+            </div>
+            <div class="filter-tabs">
+              <button class="filter-tab active">All</button>
+              <button class="filter-tab">Unread</button>
+              <button class="filter-tab">Favourites</button>
+              <button class="filter-tab">Groups</button>
+            </div>
+          </div>
+
+          <div class="chat-list" id="chatList">
+            <div class="loading">
+              <i class="fas fa-spinner"></i>
+              Loading contacts...
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area" id="chatArea">
+          <!-- Empty State -->
+          <div class="empty-chat" id="emptyState">
+            <i class="fab fa-whatsapp"></i>
+            <h2>WhatsApp Web</h2>
+            <p>
+              Send and receive messages without keeping your phone online.<br />Use
+              WhatsApp on up to 4 linked devices and 1 phone at the same time.
+            </p>
+          </div>
+
+          <!-- Chat Interface (hidden initially) -->
+          <div
+            id="chatInterface"
+            style="
+              display: none;
+              flex: 1;
+              flex-direction: column;
+              height: 100%;
+              min-height: 0;
+            "
+          >
+            <!-- Chat Top Bar -->
+            <div class="chat-top-bar">
+              <div class="chat-contact-info">
+                <div
+                  class="chat-contact-avatar online-indicator"
+                  id="chatContactAvatar"
+                >
+                  JD
+                </div>
+                <div class="contact-details">
+                  <h3 id="chatContactName">John Doe</h3>
+                  <div class="contact-status" id="chatContactStatus">
+                    click here for contact info
+                  </div>
+                </div>
+              </div>
+              <div class="chat-actions">
+                <button class="chat-action-btn" title="Search">
+                  <i class="fas fa-search"></i>
+                </button>
+                <button class="chat-action-btn" title="More options">
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="messages-area" id="messagesArea">
+              <!-- Messages will be populated here -->
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="message-input-area">
+              <div class="input-actions">
+                <button class="input-action-btn" title="Attach">
+                  <i class="fas fa-paperclip"></i>
+                </button>
+              </div>
+              <div class="message-input-container">
+                <textarea
+                  class="message-input"
+                  placeholder="Type a message"
+                  id="messageInput"
+                  rows="1"
+                ></textarea>
+                <button class="emoji-btn" title="Emoji">
+                  <i class="far fa-smile"></i>
+                </button>
+              </div>
+              <button class="send-btn" id="sendBtn" title="Send">
+                <i class="fas fa-microphone" id="sendIcon"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Configuration
+      const FRAPPE_CONFIG = {
+        baseUrl: "https://smartschool.prismaticsoft.com",
+        username: "7f577473715e8d5",
+        password: "3f4947766bff048",
+      };
+
+      // Global variables
+      let contactData = [];
+      let currentContactId = null;
+      let currentContactPhone = null;
+      let csrfToken = null;
+      let messagePollingInterval = null;
+      let lastMessageTimestamp = {};
+      let isAtBottom = true;
+
+      // Real-time message polling configuration
+      const POLLING_CONFIG = {
+        messagePollingInterval: 3000, // Check for new messages every 3 seconds
+        contactPollingInterval: 30000, // Check for new contacts every 30 seconds
+        retryDelay: 5000, // Retry failed requests after 5 seconds
+        maxRetries: 3,
+      };
+
+      // Function to get CSRF token
+      async function getCSRFToken() {
+        try {
+          const response = await fetch(`${FRAPPE_CONFIG.baseUrl}`, {
+            method: "GET",
+            credentials: "include",
+          });
+
+          const html = await response.text();
+          const match = html.match(/csrf_token['"]\s*:\s*['"]([^'"]+)['"]/);
+
+          if (match) {
+            csrfToken = match[1];
+            return csrfToken;
+          }
+
+          const cookies = document.cookie.split(";");
+          for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split("=");
+            if (name === "csrf_token") {
+              csrfToken = value;
+              return csrfToken;
+            }
+          }
+
+          throw new Error("CSRF token not found");
+        } catch (error) {
+          console.error("Error getting CSRF token:", error);
+          return null;
+        }
+      }
+
+      // Function to make authenticated API calls
+      async function makeAuthenticatedRequest(url, options = {}) {
+        if (!csrfToken) {
+          await getCSRFToken();
+        }
+
+        const headers = {
+          Authorization: `Basic ${btoa(
+            `${FRAPPE_CONFIG.username}:${FRAPPE_CONFIG.password}`
+          )}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...options.headers,
+        };
+
+        if (csrfToken) {
+          headers["X-Frappe-CSRF-Token"] = csrfToken;
+        }
+
+        const requestOptions = {
+          credentials: "include",
+          ...options,
+          headers,
+        };
+
+        return fetch(url, requestOptions);
+      }
+
+      // Enhanced function to fetch messages with real-time updates
+      async function fetchMessagesForContact(
+        phoneNumber,
+        sinceTimestamp = null
+      ) {
+        try {
+          const cleanPhone = phoneNumber.replace("+", "");
+
+          // Use the new webhook API endpoint for recent messages
+          const response = await makeAuthenticatedRequest(
+            `${FRAPPE_CONFIG.baseUrl}/api/method/whatsapp_manager.api.webhook.get_recent_messages`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                contact_phone: cleanPhone,
+                limit: 100,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (result.message && result.message.status === "success") {
+            const messages = result.message.messages || [];
+
+            // Filter messages since timestamp if provided
+            if (sinceTimestamp) {
+              return messages.filter(
+                (msg) =>
+                  new Date(msg.timestamp || msg.creation).getTime() >
+                  sinceTimestamp
+              );
+            }
+
+            return messages;
+          } else {
+            throw new Error(
+              result.message?.message || "Failed to fetch messages"
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching messages for contact:", error);
+          return [];
+        }
+      }
+
+      // Function to check for new messages
+      async function checkForNewMessages() {
+        if (!currentContactPhone) return;
+
+        try {
+          showUpdateIndicator("Checking for new messages...");
+
+          const lastTimestamp = lastMessageTimestamp[currentContactPhone] || 0;
+          const newMessages = await fetchMessagesForContact(
+            currentContactPhone,
+            lastTimestamp
+          );
+
+          if (newMessages.length > 0) {
+            const contact = contactData.find((c) => c.id === currentContactId);
+            if (contact) {
+              // Process new messages
+              const processedNewMessages = newMessages.map((message, index) => {
+                const ourNumber = "919746574552";
+                const msgSource = message.source?.toString();
+                const isSent = msgSource === ourNumber;
+
+                return {
+                  id: contact.messages.length + index + 1,
+                  text: message.message || "",
+                  sent: isSent,
+                  time: formatTime(message.timestamp || message.creation),
+                  timestamp: new Date(
+                    message.timestamp || message.creation
+                  ).getTime(),
+                  status: message.status || "delivered",
+                  messageId: message.message_id || generateMessageId(),
+                  isNew: true,
+                };
+              });
+
+              // Add new messages to contact
+              contact.messages.push(...processedNewMessages);
+
+              // Update last message info
+              if (processedNewMessages.length > 0) {
+                const lastMessage =
+                  processedNewMessages[processedNewMessages.length - 1];
+                contact.lastMessage = lastMessage.sent
+                  ? `You: ${lastMessage.text}`
+                  : lastMessage.text;
+                contact.time = lastMessage.time;
+
+                // Update timestamp tracker
+                lastMessageTimestamp[currentContactPhone] = Math.max(
+                  ...processedNewMessages.map((m) => m.timestamp)
+                );
+
+                // Update UI
+                updateContactItemLastMessage(contact);
+                appendNewMessages(processedNewMessages);
+
+                // Show notification for received messages
+                const receivedMessages = processedNewMessages.filter(
+                  (m) => !m.sent
+                );
+                if (receivedMessages.length > 0) {
+                  showNewMessageNotification(receivedMessages.length);
+
+                  // Play notification sound (optional)
+                  playNotificationSound();
+                }
+              }
+            }
+          }
+
+          hideUpdateIndicator();
+        } catch (error) {
+          console.error("Error checking for new messages:", error);
+          hideUpdateIndicator();
+        }
+      }
+
+      // Function to append new messages to the chat
+      function appendNewMessages(newMessages) {
+        const messagesArea = document.getElementById("messagesArea");
+        const wasAtBottom = isAtBottom;
+
+        newMessages.forEach((message) => {
+          const messageElement = createMessageElement(message);
+          messageElement.classList.add("new-message");
+          messagesArea.appendChild(messageElement);
+
+          // Add a subtle highlight animation for new messages
+          setTimeout(() => {
+            messageElement.classList.remove("new-message");
+          }, 3000);
+        });
+
+        // Auto-scroll to bottom if user was already at bottom or if it's a sent message
+        if (wasAtBottom || newMessages.some((m) => m.sent)) {
+          setTimeout(() => {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+          }, 100);
+        }
+      }
+
+      // Function to show new message notification
+      function showNewMessageNotification(messageCount) {
+        const notification = document.getElementById("newMessageNotification");
+        const notificationText = document.getElementById("notificationText");
+
+        notificationText.textContent =
+          messageCount === 1
+            ? "New message received"
+            : `${messageCount} new messages received`;
+
+        notification.style.display = "block";
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          notification.style.display = "none";
+        }, 5000);
+
+        // Click to scroll to bottom
+        notification.onclick = () => {
+          const messagesArea = document.getElementById("messagesArea");
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+          notification.style.display = "none";
+        };
+      }
+
+      // Function to play notification sound
+      function playNotificationSound() {
+        // Create audio context for notification sound
+        if (typeof Audio !== "undefined") {
+          try {
+            // You can replace this with an actual notification sound file
+            const audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 800;
+            oscillator.type = "sine";
+
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(
+              0.01,
+              audioContext.currentTime + 0.1
+            );
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+          } catch (error) {
+            console.log("Could not play notification sound:", error);
+          }
+        }
+      }
+
+      // Function to show update indicator
+      function showUpdateIndicator(text) {
+        const indicator = document.getElementById("updateIndicator");
+        indicator.textContent = text;
+        indicator.classList.add("show");
+      }
+
+      // Function to hide update indicator
+      function hideUpdateIndicator() {
+        const indicator = document.getElementById("updateIndicator");
+        indicator.classList.remove("show");
+      }
+
+      // Start real-time message polling
+      function startMessagePolling() {
+        // Clear existing interval if any
+        if (messagePollingInterval) {
+          clearInterval(messagePollingInterval);
+        }
+
+        // Start polling for new messages
+        messagePollingInterval = setInterval(() => {
+          if (currentContactPhone) {
+            checkForNewMessages();
+          }
+        }, POLLING_CONFIG.messagePollingInterval);
+      }
+
+      // Stop message polling
+      function stopMessagePolling() {
+        if (messagePollingInterval) {
+          clearInterval(messagePollingInterval);
+          messagePollingInterval = null;
+        }
+      }
+
+      // Enhanced select contact function with real-time updates
+      async function selectContact(contactId) {
+        // Stop current polling
+        stopMessagePolling();
+
+        document.querySelectorAll(".chat-item").forEach((item) => {
+          item.classList.remove("active");
+        });
+
+        const selectedItem = document.querySelector(
+          `[data-contact-id="${contactId}"]`
+        );
+        if (selectedItem) {
+          selectedItem.classList.add("active");
+        }
+
+        currentContactId = contactId;
+        const contact = contactData.find((c) => c.id === contactId);
+
+        if (contact) {
+          currentContactPhone = contact.phoneNumber;
+          showChatInterface(contact);
+
+          showStatus("Loading messages...", "success");
+          await loadMessagesForContact(contact);
+
+          // Initialize timestamp tracker
+          if (contact.messages.length > 0) {
+            lastMessageTimestamp[currentContactPhone] = Math.max(
+              ...contact.messages.map((m) => m.timestamp)
+            );
+          }
+
+          // Start polling for this contact
+          startMessagePolling();
+        }
+      }
+
+      // Enhanced send message function
+      async function sendMessage() {
+        const input = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const text = input.value.trim();
+
+        if (!text || !currentContactId || !currentContactPhone) return;
+
+        const contact = contactData.find((c) => c.id === currentContactId);
+        if (!contact) return;
+
+        // Show sending state
+        sendBtn.classList.add("sending");
+        sendBtn.disabled = true;
+
+        const messageId = generateMessageId();
+        const timestamp = Date.now();
+
+        const newMessage = {
+          id: contact.messages.length + 1,
+          text: text,
+          sent: true,
+          time: getCurrentTime(),
+          timestamp: timestamp,
+          status: "sending",
+          messageId: messageId,
+        };
+
+        contact.messages.push(newMessage);
+        contact.lastMessage = `You: ${text}`;
+        contact.time = getCurrentTime();
+
+        // Update last message timestamp
+        lastMessageTimestamp[currentContactPhone] = timestamp;
+
+        input.value = "";
+        updateSendButton();
+        appendNewMessages([newMessage]);
+        updateContactItemLastMessage(contact);
+
+        try {
+          showStatus("Sending message...", "warning");
+
+          // Send message via server
+          const result = await sendViaFrappeAPI(
+            text,
+            contact.phoneNumber,
+            messageId
+          );
+
+          if (result.success) {
+            newMessage.status = "sent";
+            showStatus("Message sent successfully!", "success");
+
+            // Update the message element
+            updateMessageStatus(messageId, "sent");
+          } else {
+            newMessage.status = "failed";
+            showStatus(`Failed to send message: ${result.error}`, "error");
+            updateMessageStatus(messageId, "failed");
+          }
+        } catch (error) {
+          console.error("Error sending message:", error);
+          newMessage.status = "failed";
+          updateMessageStatus(messageId, "failed");
+          showStatus(`Error: ${error.message}`, "error");
+        } finally {
+          sendBtn.classList.remove("sending");
+          sendBtn.disabled = false;
+        }
+      }
+
+      // Function to update message status in UI
+      function updateMessageStatus(messageId, status) {
+        const messageElement = document.querySelector(
+          `[data-message-id="${messageId}"]`
+        );
+        if (messageElement) {
+          const statusIcon = messageElement.querySelector(
+            ".message-status-icon"
+          );
+          if (statusIcon) {
+            statusIcon.className = `fas message-status-icon ${status}`;
+
+            switch (status) {
+              case "sending":
+                statusIcon.className =
+                  "fas fa-clock message-status-icon sending";
+                break;
+              case "sent":
+                statusIcon.className = "fas fa-check message-status-icon sent";
+                break;
+              case "delivered":
+                statusIcon.className =
+                  "fas fa-check-double message-status-icon delivered";
+                break;
+              case "failed":
+                statusIcon.className =
+                  "fas fa-exclamation-triangle message-status-icon failed";
+                break;
+            }
+          }
+        }
+      }
+
+      // Send message to Frappe API
+      async function sendViaFrappeAPI(message, phoneNumber, messageId) {
+        try {
+          const response = await makeAuthenticatedRequest(
+            `${FRAPPE_CONFIG.baseUrl}/api/method/whatsapp_manager.api.chat.send_whatsapp_message`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                destination: phoneNumber,
+                message: message,
+                message_id: messageId,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server Error: ${response.status} - ${errorText}`);
+          }
+
+          const result = await response.json();
+          return result.message || { success: false, error: "Unknown error" };
+        } catch (error) {
+          console.error("API Error:", error);
+          throw error;
+        }
+      }
+
+      // Fetch WhatsApp contacts from Frappe API
+      async function fetchWhatsAppContacts() {
+        try {
+          showStatus("Loading contacts...", "success");
+
+          const url = `${FRAPPE_CONFIG.baseUrl}/api/resource/Whatsapp%20Contact?fields=["name","phone_number","name1","opt_in_status","last_message_date","creation","modified"]&limit_page_length=1000&order_by=modified%20desc`;
+
+          const response = await makeAuthenticatedRequest(url);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          return result.data || [];
+        } catch (error) {
+          console.error("Error fetching WhatsApp contacts:", error);
+          showStatus(`Error loading contacts: ${error.message}`, "error");
+          return [];
+        }
+      }
+
+      // Process contacts into chat format
+      function processContactsIntoChats(contacts) {
+        return contacts.map((contact, index) => {
+          const phoneNumber = contact.phone_number || contact.name;
+          let displayName = contact.name1 || getContactName(phoneNumber);
+
+          return {
+            id: index + 1,
+            name: displayName,
+            avatar: getContactAvatar(phoneNumber, displayName),
+            phoneNumber: phoneNumber,
+            messages: [],
+            lastMessage: "Click to load messages",
+            time: formatTime(
+              contact.modified || contact.creation || new Date().toISOString()
+            ),
+            unread: 0,
+            status: contact.opt_in_status || "click here for contact info",
+            isBusiness: 0,
+            profilePicture: null,
+            lastSeen: contact.last_message_date || null,
+            contactDoc: contact,
+          };
+        });
+      }
+
+      // Helper functions (keeping existing ones)
+      function getContactName(phoneNumber) {
+        const cleanNumber = phoneNumber.replace("+91", "").replace("+", "");
+        return `Contact ${cleanNumber.slice(-4)}`;
+      }
+
+      function getContactAvatar(phoneNumber, contactName = null) {
+        if (contactName) {
+          const words = contactName.split(" ");
+          if (words.length >= 2) {
+            return (words[0][0] + words[1][0]).toUpperCase();
+          } else {
+            return contactName.substring(0, 2).toUpperCase();
+          }
+        }
+
+        const cleanNumber = phoneNumber.replace("+91", "").replace("+", "");
+        return cleanNumber.slice(-2).toUpperCase();
+      }
+
+      function formatTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        const hours = diff / (1000 * 60 * 60);
+
+        if (hours < 24) {
+          return date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } else if (hours < 48) {
+          return "Yesterday";
+        } else {
+          return date.toLocaleDateString();
+        }
+      }
+
+      function getCurrentTime() {
+        const now = new Date();
+        return now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function generateMessageId() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 15);
+        return `msg_${timestamp}_${random}`;
+      }
+
+      function showStatus(message, type = "success") {
+        const indicator = document.getElementById("statusIndicator");
+        indicator.textContent = message;
+        indicator.className = `status-indicator ${type}`;
+        indicator.style.display = "block";
+
+        setTimeout(() => {
+          indicator.style.display = "none";
+        }, 3000);
+      }
+
+      // Load contacts from API
+      async function loadContactsFromAPI() {
+        try {
+          const contacts = await fetchWhatsAppContacts();
+
+          if (contacts.length === 0) {
+            document.getElementById("chatList").innerHTML =
+              '<div class="loading">No contacts found</div>';
+            return;
+          }
+
+          contactData = processContactsIntoChats(contacts);
+          populateContactList();
+          showStatus("Contacts loaded successfully!", "success");
+        } catch (error) {
+          console.error("Error loading contacts:", error);
+          document.getElementById("chatList").innerHTML =
+            '<div class="loading">Error loading contacts</div>';
+          showStatus("Failed to load contacts", "error");
+        }
+      }
+
+      // Populate contact list
+      function populateContactList() {
+        const chatList = document.getElementById("chatList");
+        chatList.innerHTML = "";
+
+        if (contactData.length === 0) {
+          chatList.innerHTML =
+            '<div class="loading">No contacts available</div>';
+          return;
+        }
+
+        contactData.forEach((contact) => {
+          const chatItem = createContactItem(contact);
+          chatList.appendChild(chatItem);
+        });
+      }
+
+      // Create contact item
+      function createContactItem(contact) {
+        const chatItem = document.createElement("div");
+        chatItem.className = "chat-item";
+        chatItem.setAttribute("data-contact-id", contact.id);
+
+        const businessIcon = contact.isBusiness
+          ? '<i class="fas fa-building" style="color: #00a884; margin-right: 5px;"></i>'
+          : "";
+
+        chatItem.innerHTML = `
+                <div class="chat-avatar">${contact.avatar}</div>
+                <div class="chat-info">
+                    <div class="chat-header-info">
+                        <div class="chat-name">${businessIcon}${
+          contact.name
+        }</div>
+                        <div class="chat-time">${contact.time}</div>
+                    </div>
+                    <div class="chat-last-message">
+                        ${contact.lastMessage}
+                        ${
+                          contact.unread > 0
+                            ? `<div class="unread-badge">${contact.unread}</div>`
+                            : ""
+                        }
+                    </div>
+                </div>
+            `;
+
+        chatItem.addEventListener("click", () => selectContact(contact.id));
+        return chatItem;
+      }
+
+      // Show chat interface
+      function showChatInterface(contact) {
+        document.getElementById("emptyState").style.display = "none";
+        document.getElementById("chatInterface").style.display = "flex";
+
+        document.getElementById("chatContactName").textContent = contact.name;
+        document.getElementById("chatContactStatus").textContent =
+          contact.lastSeen
+            ? `Last seen ${formatTime(contact.lastSeen)}`
+            : contact.status;
+        document.getElementById("chatContactAvatar").textContent =
+          contact.avatar;
+      }
+
+      // Load messages for contact
+      async function loadMessagesForContact(contact) {
+        try {
+          const messages = await fetchMessagesForContact(contact.phoneNumber);
+
+          const processedMessages = messages.map((message, index) => {
+            const ourNumber = "919746574552";
+            const msgSource = message.source?.toString();
+            const isSent = msgSource === ourNumber;
+
+            return {
+              id: index + 1,
+              text: message.message || "",
+              sent: isSent,
+              time: formatTime(message.timestamp || message.creation),
+              timestamp: new Date(
+                message.timestamp || message.creation
+              ).getTime(),
+              status: message.status || "delivered",
+              messageId: message.message_id || generateMessageId(),
+            };
+          });
+
+          processedMessages.sort((a, b) => a.timestamp - b.timestamp);
+
+          contact.messages = processedMessages;
+
+          if (processedMessages.length > 0) {
+            const lastMessage = processedMessages[processedMessages.length - 1];
+            contact.lastMessage = lastMessage.sent
+              ? `You: ${lastMessage.text}`
+              : lastMessage.text;
+            contact.time = lastMessage.time;
+            updateContactItemLastMessage(contact);
+          } else {
+            contact.lastMessage = "No messages yet";
+            contact.time = "Start a conversation";
+          }
+
+          displayMessages(contact);
+          showStatus(
+            `${processedMessages.length} messages loaded for ${contact.name}!`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Error loading messages for contact:", error);
+          showStatus("Failed to load messages", "error");
+
+          const messagesArea = document.getElementById("messagesArea");
+          messagesArea.innerHTML =
+            '<div class="loading">Failed to load messages. Click refresh to try again.</div>';
+        }
+      }
+
+      // Update contact item last message in the list
+      function updateContactItemLastMessage(contact) {
+        const contactItem = document.querySelector(
+          `[data-contact-id="${contact.id}"]`
+        );
+        if (contactItem) {
+          const lastMessageEl = contactItem.querySelector(".chat-last-message");
+          const timeEl = contactItem.querySelector(".chat-time");
+
+          if (lastMessageEl) {
+            const statusIcon = contact.lastMessage.startsWith("You:")
+              ? '<i class="fas fa-check-double message-status"></i>'
+              : "";
+            lastMessageEl.innerHTML = `${statusIcon}${contact.lastMessage}`;
+          }
+
+          if (timeEl) {
+            timeEl.textContent = contact.time;
+          }
+        }
+      }
+
+      // Display messages
+      function displayMessages(contact) {
+        const messagesArea = document.getElementById("messagesArea");
+        messagesArea.innerHTML = "";
+
+        if (contact.messages.length === 0) {
+          const noMessages = document.createElement("div");
+          noMessages.className = "loading";
+          noMessages.textContent = "No messages found. Start a conversation!";
+          messagesArea.appendChild(noMessages);
+          return;
+        }
+
+        // Add messages
+        contact.messages.forEach((message) => {
+          const messageElement = createMessageElement(message);
+          messagesArea.appendChild(messageElement);
+        });
+
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesArea.scrollTop = messagesArea.scrollHeight;
+          isAtBottom = true;
+        }, 100);
+      }
+
+      // Create message element
+      function createMessageElement(message) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${message.sent ? "sent" : "received"}`;
+        messageDiv.setAttribute("data-message-id", message.messageId || "");
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble";
+
+        let messageContent = `<div class="message-text">${message.text}</div>`;
+
+        // Status icon for sent messages
+        let statusIcon = "";
+        if (message.sent) {
+          switch (message.status) {
+            case "sending":
+              statusIcon =
+                '<i class="fas fa-clock message-status-icon sending"></i>';
+              break;
+            case "sent":
+              statusIcon =
+                '<i class="fas fa-check message-status-icon sent"></i>';
+              break;
+            case "delivered":
+              statusIcon =
+                '<i class="fas fa-check-double message-status-icon delivered"></i>';
+              break;
+            case "failed":
+              statusIcon =
+                '<i class="fas fa-exclamation-triangle message-status-icon failed"></i>';
+              break;
+            default:
+              statusIcon =
+                '<i class="fas fa-check-double message-status-icon"></i>';
+          }
+        }
+
+        const metaContent = `
+                <div class="message-meta">
+                    <span class="message-time">${message.time}</span>
+                    ${statusIcon}
+                </div>
+            `;
+
+        bubble.innerHTML = messageContent + metaContent;
+        messageDiv.appendChild(bubble);
+
+        return messageDiv;
+      }
+
+      // Update send button
+      function updateSendButton() {
+        const input = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const sendIcon = document.getElementById("sendIcon");
+
+        if (input.value.trim()) {
+          sendBtn.classList.add("active");
+          sendIcon.className = "fas fa-paper-plane";
+        } else {
+          sendBtn.classList.remove("active");
+          sendIcon.className = "fas fa-microphone";
+        }
+      }
+
+      // Setup event listeners
+      function setupEventListeners() {
+        const messageInput = document.getElementById("messageInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const refreshBtn = document.getElementById("refreshBtn");
+
+        sendBtn.addEventListener("click", () => {
+          if (messageInput.value.trim() && !sendBtn.disabled) {
+            sendMessage();
+          }
+        });
+
+        messageInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (messageInput.value.trim() && !sendBtn.disabled) {
+              sendMessage();
+            }
+          }
+        });
+
+        messageInput.addEventListener("input", () => {
+          updateSendButton();
+          messageInput.style.height = "auto";
+          messageInput.style.height = messageInput.scrollHeight + "px";
+        });
+
+        refreshBtn.addEventListener("click", async () => {
+          refreshBtn.querySelector("i").style.animation =
+            "spin 1s linear infinite";
+          await loadContactsFromAPI();
+          refreshBtn.querySelector("i").style.animation = "";
+        });
+
+        // Search functionality
+        document
+          .getElementById("searchInput")
+          .addEventListener("input", (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const contactItems = document.querySelectorAll(".chat-item");
+
+            contactItems.forEach((item) => {
+              const name = item
+                .querySelector(".chat-name")
+                .textContent.toLowerCase();
+              const phoneNumber =
+                contactData
+                  .find(
+                    (c) =>
+                      c.id === parseInt(item.getAttribute("data-contact-id"))
+                  )
+                  ?.phoneNumber?.toLowerCase() || "";
+
+              if (
+                name.includes(searchTerm) ||
+                phoneNumber.includes(searchTerm)
+              ) {
+                item.style.display = "flex";
+              } else {
+                item.style.display = "none";
+              }
+            });
+          });
+
+        // Filter tabs
+        document.querySelectorAll(".filter-tab").forEach((tab) => {
+          tab.addEventListener("click", () => {
+            document
+              .querySelectorAll(".filter-tab")
+              .forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+
+            const filterType = tab.textContent.toLowerCase();
+            filterContacts(filterType);
+          });
+        });
+
+        // Track scroll position for auto-scroll behavior
+        const messagesArea = document.getElementById("messagesArea");
+        messagesArea.addEventListener("scroll", () => {
+          const { scrollTop, scrollHeight, clientHeight } = messagesArea;
+          isAtBottom = scrollTop + clientHeight >= scrollHeight - 100;
+        });
+
+        // Visibility change handling (pause polling when tab is not active)
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            stopMessagePolling();
+          } else {
+            if (currentContactPhone) {
+              startMessagePolling();
+            }
+          }
+        });
+      }
+
+      // Filter contacts based on type
+      function filterContacts(filterType) {
+        const contactItems = document.querySelectorAll(".chat-item");
+
+        contactItems.forEach((item) => {
+          const contactId = parseInt(item.getAttribute("data-contact-id"));
+          const contact = contactData.find((c) => c.id === contactId);
+
+          if (!contact) return;
+
+          switch (filterType) {
+            case "unread":
+              item.style.display = contact.unread > 0 ? "flex" : "none";
+              break;
+            case "favourites":
+              item.style.display = contactId <= 3 ? "flex" : "none";
+              break;
+            case "groups":
+              item.style.display = contact.isBusiness ? "flex" : "none";
+              break;
+            default:
+              item.style.display = "flex";
+          }
+        });
+      }
+
+      // Auto-refresh contacts
+      function startContactPolling() {
+        setInterval(async () => {
+          try {
+            const contacts = await fetchWhatsAppContacts();
+            const newContactData = processContactsIntoChats(contacts);
+
+            if (newContactData.length !== contactData.length) {
+              const currentSelected = currentContactId;
+              contactData = newContactData;
+              populateContactList();
+
+              if (currentSelected) {
+                const selectedItem = document.querySelector(
+                  `[data-contact-id="${currentSelected}"]`
+                );
+                if (selectedItem) {
+                  selectedItem.classList.add("active");
+                }
+              }
+
+              showStatus("Contacts updated", "success");
+            }
+          } catch (error) {
+            console.error("Auto-refresh error:", error);
+          }
+        }, POLLING_CONFIG.contactPollingInterval);
+      }
+
+      // Initialize the app
+      async function initApp() {
+        await getCSRFToken();
+        await loadContactsFromAPI();
+        setupEventListeners();
+        startContactPolling();
+
+        // Show initial status
+        showStatus(
+          "WhatsApp interface ready for real-time messaging!",
+          "success"
+        );
+      }
+
+      // Cleanup function
+      function cleanup() {
+        stopMessagePolling();
+      }
+
+      // Handle page unload
+      window.addEventListener("beforeunload", cleanup);
+
+      // Initialize app when DOM is loaded
+      document.addEventListener("DOMContentLoaded", () => {
+        initApp();
+      });
+
+      // Debug utilities
+      window.whatsappDebug = {
+        contactData,
+        currentContactId,
+        currentContactPhone,
+        lastMessageTimestamp,
+        startMessagePolling,
+        stopMessagePolling,
+        checkForNewMessages,
+        sendMessage,
+        POLLING_CONFIG,
+      };
+
+      console.log(
+        "Enhanced WhatsApp Interface with Real-time Updates loaded successfully!"
+      );
+      console.log("Features enabled:");
+      console.log(
+        "- Real-time message polling every",
+        POLLING_CONFIG.messagePollingInterval / 1000,
+        "seconds"
+      );
+      console.log(
+        "- Auto contact refresh every",
+        POLLING_CONFIG.contactPollingInterval / 1000,
+        "seconds"
+      );
+      console.log("- New message notifications");
+      console.log("- Automatic scroll management");
+      console.log("- Debug functions available at: window.whatsappDebug");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+whatsapp_manager.patches.add_whatsapp_access_to_user

@@ -1,0 +1,15 @@
+{
+  "db_name": "_963ed95b80679f6a",
+  "db_password": "oPG7mfBGvKq4zBKC",
+  "db_type": "mariadb",
+  "encryption_key": "KQNQdD23OZ0HVC7wu5LHSNFClR3jylMcjPQ_C4hbPx4=",
+  "maintanance_mode": 0,
+  "maintenance_mode": 0,
+  "user_type_doctype_limit": {
+    "employee_self_service": 40
+  },
+  "ignore_csrf": [
+    "/api/method/whatsapp_manager.api.webhook.handle_gupshup_webhook",
+    "/api/method/whatsapp_manager.api.webhook.test_webhook"
+  ]
+}

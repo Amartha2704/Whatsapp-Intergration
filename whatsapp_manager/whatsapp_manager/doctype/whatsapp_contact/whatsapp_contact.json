@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:phone_number",
+ "creation": "2025-05-14 11:55:39.344343",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "phone_number",
+  "name1",
+  "email",
+  "column_break_xw0s6",
+  "customer",
+  "opt_in_status",
+  "last_message_date",
+  "additional_info_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "label": "Phone Number",
+   "unique": 1
+  },
+  {
+   "fieldname": "name1",
+   "fieldtype": "Data",
+   "label": "Name"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "column_break_xw0s6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "opt_in_status",
+   "fieldtype": "Select",
+   "label": "Opt in Status",
+   "options": "\nSubscribed\nUnsubscribed\nPending"
+  },
+  {
+   "fieldname": "last_message_date",
+   "fieldtype": "Datetime",
+   "label": "Last Message Date"
+  },
+  {
+   "fieldname": "additional_info_section",
+   "fieldtype": "Section Break",
+   "label": "Additional Info"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-05-21 11:15:41.010664",
+ "modified_by": "Administrator",
+ "module": "WhatsApp Manager",
+ "name": "Whatsapp Contact",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

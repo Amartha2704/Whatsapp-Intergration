@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Send WhatsApp Message</title>
+  </head>
+  <body>
+    <h3>Send WhatsApp Message</h3>
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return null;
+      }
+
+      async function sendMessage() {
+        const csrfToken = getCookie("csrf_token");
+
+        const data = {
+          doctype: "WhatsApp Message",
+          message: "Hi from HTML file",
+          source: "Web",
+          direction: "Outgoing",
+          destination_name: "Nithiya Ofc",
+          message_id: "test-msg-id-001",
+          message_type: "Text",
+          timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+          status: "Sent",
+        };
+
+        try {
+          const response = await fetch("https://smartschool.prismaticsoft.com/api/resource/WhatsApp Message", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Frappe-CSRF-Token": csrfToken,
+            },
+            credentials: "include", // this ensures cookies (your login) are sent
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+          }
+
+          const result = await response.json();
+          alert("Success: Message created!");
+          console.log(result);
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Failed: " + error.message);
+        }
+      }
+    </script>
+  </body>
+</html>
