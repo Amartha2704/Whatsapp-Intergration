@@ -28,8 +28,8 @@ def send_whatsapp_message(destination, message, message_id=None, message_type="T
             }
 
         contact = contact_result.get("contact")
-        contact_name = contact.get("name")
-        
+        contact_name = contact.get("name1")
+
         # Prepare form data for Gupshup
         form_data = {
             'channel': 'whatsapp',
@@ -70,10 +70,10 @@ def send_whatsapp_message(destination, message, message_id=None, message_type="T
             
             # Add fields that exist in the doctype
             field_mapping = {
-                "contact": contact_name,
+                
                 "source": "919746574552", 
                 "destination": clean_destination,  # Use phone number instead of contact name
-                "destination_name": clean_destination,
+                "destination_name": contact_name ,
                 "message": str(message),
                 "direction": "Outgoing",
                 "message_id": final_message_id,
