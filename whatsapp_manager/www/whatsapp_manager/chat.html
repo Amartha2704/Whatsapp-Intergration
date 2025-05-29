@@ -233,7 +233,7 @@
         background: #00a884;
         color: white;
         border-radius: 50%;
-        width: 20px;
+        min-width: 20px;
         height: 20px;
         display: flex;
         align-items: center;
@@ -241,6 +241,8 @@
         font-size: 12px;
         font-weight: bold;
         margin-left: 10px;
+        padding: 0 6px;
+        animation: pulse 0.5s ease-in-out;
       }
 
       /* Chat Area */
@@ -648,10 +650,12 @@
       @keyframes pulse {
         0%,
         100% {
-          opacity: 0.5;
+          opacity: 0.8;
+          transform: scale(1);
         }
         50% {
           opacity: 1;
+          transform: scale(1.1);
         }
       }
 
@@ -698,6 +702,22 @@
 
       .update-indicator.show {
         display: block;
+      }
+
+      /* Chat item with new messages highlight */
+      .chat-item.has-new-messages {
+        background: rgba(0, 168, 132, 0.1);
+        border-left: 3px solid #00a884;
+      }
+
+      .chat-item.has-new-messages .chat-name {
+        color: #00a884;
+        font-weight: 500;
+      }
+
+      .chat-item.has-new-messages .chat-last-message {
+        color: #e9edef;
+        font-weight: 500;
       }
     </style>
   </head>
@@ -876,8 +896,14 @@
       let lastMessageTimestamp = {};
       let isAtBottom = true;
       
-      // NEW: Store sent messages that haven't been confirmed by server yet
+      // Store sent messages that haven't been confirmed by server yet
       let pendingSentMessages = new Map(); // phoneNumber -> array of messages
+      
+      // NEW: Track unread messages for each contact
+      let unreadMessages = new Map(); // phoneNumber -> unread count
+      
+      // NEW: Track last read timestamp for each contact
+      let lastReadTimestamp = new Map(); // phoneNumber -> timestamp
 
       // Real-time message polling configuration
       const POLLING_CONFIG = {
@@ -885,6 +911,7 @@
         contactPollingInterval: 30000, // Check for new contacts every 30 seconds
         retryDelay: 5000, // Retry failed requests after 5 seconds
         maxRetries: 3,
+        globalMessagePollingInterval: 5000, // Check all contacts for new messages
       };
 
       // Function to get CSRF token
@@ -914,7 +941,6 @@
 
           throw new Error("CSRF token not found");
         } catch (error) {
-          // console.error("Error getting CSRF token:", error);
           return null;
         }
       }
@@ -992,12 +1018,11 @@
             );
           }
         } catch (error) {
-          //console.error("Error fetching messages for contact:", error);
           return [];
         }
       }
 
-      // FIXED: Function to merge server messages with pending sent messages
+      // Function to merge server messages with pending sent messages
       function mergeMessagesWithPending(serverMessages, phoneNumber) {
         const pending = pendingSentMessages.get(phoneNumber) || [];
         const allMessages = [...serverMessages];
@@ -1040,13 +1065,155 @@
         return allMessages;
       }
 
-      // Function to check for new messages
+      // NEW: Function to mark messages as read for a contact
+      function markMessagesAsRead(phoneNumber) {
+        const currentTime = Date.now();
+        lastReadTimestamp.set(phoneNumber, currentTime);
+        unreadMessages.set(phoneNumber, 0);
+        
+        // Update UI immediately
+        updateContactUnreadBadge(phoneNumber);
+        
+        // Also update the contact data
+        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        if (contact) {
+          contact.unread = 0;
+        }
+      }
+
+      // NEW: Function to increment unread count for a contact
+      function incrementUnreadCount(phoneNumber, messageCount = 1) {
+        const currentUnread = unreadMessages.get(phoneNumber) || 0;
+        const newUnread = currentUnread + messageCount;
+        unreadMessages.set(phoneNumber, newUnread);
+        
+        // Update contact data
+        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        if (contact) {
+          contact.unread = newUnread;
+        }
+        
+        updateContactUnreadBadge(phoneNumber);
+      }
+
+      // NEW: Function to update unread badge in UI
+      function updateContactUnreadBadge(phoneNumber) {
+        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        if (!contact) return;
+
+        const contactItem = document.querySelector(`[data-contact-id="${contact.id}"]`);
+        if (!contactItem) return;
+
+        const lastMessageEl = contactItem.querySelector('.chat-last-message');
+        const unreadCount = unreadMessages.get(phoneNumber) || 0;
+
+        // Remove existing badge
+        const existingBadge = lastMessageEl.querySelector('.unread-badge');
+        if (existingBadge) {
+          existingBadge.remove();
+        }
+
+        // Add new badge if there are unread messages
+        if (unreadCount > 0) {
+          const badge = document.createElement('div');
+          badge.className = 'unread-badge';
+          badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+          lastMessageEl.appendChild(badge);
+          
+          // Add visual highlight to the chat item
+          contactItem.classList.add('has-new-messages');
+        } else {
+          // Remove visual highlight
+          contactItem.classList.remove('has-new-messages');
+        }
+      }
+
+      // NEW: Function to check for new messages in all contacts
+      async function checkForNewMessagesInAllContacts() {
+        try {
+          showUpdateIndicator("Checking for new messages in all chats...");
+
+          for (const contact of contactData) {
+            // Skip current active contact (it's handled separately)
+            if (contact.phoneNumber === currentContactPhone) continue;
+
+            const lastTimestamp = lastMessageTimestamp[contact.phoneNumber] || 0;
+            const newMessages = await fetchMessagesForContact(
+              contact.phoneNumber,
+              lastTimestamp
+            );
+
+            if (newMessages.length > 0) {
+              // Process new messages
+              const processedNewMessages = newMessages.map((message, index) => {
+                const ourNumber = "919746574552";
+                const msgSource = message.source?.toString();
+                const isSent = msgSource === ourNumber;
+
+                return {
+                  id: contact.messages.length + index + 1,
+                  text: message.message || "",
+                  sent: isSent,
+                  time: formatTime(message.timestamp || message.creation),
+                  timestamp: new Date(
+                    message.timestamp || message.creation
+                  ).getTime(),
+                  status: message.status || "delivered",
+                  messageId: message.message_id || generateMessageId(),
+                  isNew: true,
+                };
+              });
+
+              // Add new messages to contact
+              contact.messages.push(...processedNewMessages);
+
+              // Update last message info
+              if (processedNewMessages.length > 0) {
+                const lastMessage = processedNewMessages[processedNewMessages.length - 1];
+                contact.lastMessage = lastMessage.sent
+                  ? `You: ${lastMessage.text}`
+                  : lastMessage.text;
+                contact.time = lastMessage.time;
+
+                // Update timestamp tracker
+                lastMessageTimestamp[contact.phoneNumber] = Math.max(
+                  ...processedNewMessages.map((m) => m.timestamp)
+                );
+
+                // Count received messages for unread badge
+                const receivedMessages = processedNewMessages.filter(m => !m.sent);
+                if (receivedMessages.length > 0) {
+                  incrementUnreadCount(contact.phoneNumber, receivedMessages.length);
+                  
+                  // Show notification for received messages
+                  showNewMessageNotification(
+                    receivedMessages.length, 
+                    contact.name,
+                    receivedMessages[receivedMessages.length - 1].text
+                  );
+                  
+                  // Play notification sound
+                  playNotificationSound();
+                }
+
+                // Update contact item in UI
+                updateContactItemLastMessage(contact);
+              }
+            }
+          }
+
+          hideUpdateIndicator();
+        } catch (error) {
+          console.error("Error checking for new messages in all contacts:", error);
+          hideUpdateIndicator();
+        }
+      }
+
+      // Function to check for new messages in current contact
       async function checkForNewMessages() {
         if (!currentContactPhone) return;
 
         try {
-          showUpdateIndicator("Checking for new messages...");
-
           const lastTimestamp = lastMessageTimestamp[currentContactPhone] || 0;
           const newMessages = await fetchMessagesForContact(
             currentContactPhone,
@@ -1093,6 +1260,9 @@
                   ...processedNewMessages.map((m) => m.timestamp)
                 );
 
+                // Mark as read since it's the current chat
+                markMessagesAsRead(currentContactPhone);
+
                 // Update UI
                 updateContactItemLastMessage(contact);
                 appendNewMessages(processedNewMessages);
@@ -1102,19 +1272,20 @@
                   (m) => !m.sent
                 );
                 if (receivedMessages.length > 0) {
-                  showNewMessageNotification(receivedMessages.length);
+                  showNewMessageNotification(
+                    receivedMessages.length,
+                    contact.name,
+                    receivedMessages[receivedMessages.length - 1].text
+                  );
 
-                  // Play notification sound (optional)
+                  // Play notification sound
                   playNotificationSound();
                 }
               }
             }
           }
-
-          hideUpdateIndicator();
         } catch (error) {
-          //console.error("Error checking for new messages:", error);
-          hideUpdateIndicator();
+          console.error("Error checking for new messages:", error);
         }
       }
 
@@ -1142,16 +1313,25 @@
         }
       }
 
-      // Function to show new message notification
-      function showNewMessageNotification(messageCount) {
+      // Enhanced function to show new message notification
+      function showNewMessageNotification(messageCount, contactName = null, lastMessage = null) {
         const notification = document.getElementById("newMessageNotification");
         const notificationText = document.getElementById("notificationText");
 
-        notificationText.textContent =
-          messageCount === 1
+        let notificationMessage;
+        if (contactName && lastMessage) {
+          if (messageCount === 1) {
+            notificationMessage = `${contactName}: ${lastMessage.substring(0, 30)}${lastMessage.length > 30 ? '...' : ''}`;
+          } else {
+            notificationMessage = `${contactName}: ${messageCount} new messages`;
+          }
+        } else {
+          notificationMessage = messageCount === 1
             ? "New message received"
             : `${messageCount} new messages received`;
+        }
 
+        notificationText.textContent = notificationMessage;
         notification.style.display = "block";
 
         // Auto-hide after 5 seconds
@@ -1159,10 +1339,19 @@
           notification.style.display = "none";
         }, 5000);
 
-        // Click to scroll to bottom
+        // Click to scroll to bottom or switch to contact
         notification.onclick = () => {
-          const messagesArea = document.getElementById("messagesArea");
-          messagesArea.scrollTop = messagesArea.scrollHeight;
+          if (contactName && contactName !== document.getElementById("chatContactName").textContent) {
+            // Switch to the contact that sent the message
+            const contact = contactData.find(c => c.name === contactName);
+            if (contact) {
+              selectContact(contact.id);
+            }
+          } else {
+            // Scroll to bottom if already in the same chat
+            const messagesArea = document.getElementById("messagesArea");
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+          }
           notification.style.display = "none";
         };
       }
@@ -1193,7 +1382,7 @@
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.1);
           } catch (error) {
-            //console.log("Could not play notification sound:", error);
+            console.log("Could not play notification sound:", error);
           }
         }
       }
@@ -1218,12 +1407,19 @@
           clearInterval(messagePollingInterval);
         }
 
-        // Start polling for new messages
+        // Start polling for new messages in current chat
         messagePollingInterval = setInterval(() => {
           if (currentContactPhone) {
             checkForNewMessages();
           }
         }, POLLING_CONFIG.messagePollingInterval);
+      }
+
+      // NEW: Start global message polling for all contacts
+      function startGlobalMessagePolling() {
+        setInterval(() => {
+          checkForNewMessagesInAllContacts();
+        }, POLLING_CONFIG.globalMessagePollingInterval);
       }
 
       // Stop message polling
@@ -1234,7 +1430,7 @@
         }
       }
 
-      // Enhanced select contact function with real-time updates
+      // Enhanced select contact function with read status update
       async function selectContact(contactId) {
         // Stop current polling
         stopMessagePolling();
@@ -1255,6 +1451,10 @@
 
         if (contact) {
           currentContactPhone = contact.phoneNumber;
+          
+          // Mark messages as read when selecting a contact
+          markMessagesAsRead(contact.phoneNumber);
+          
           showChatInterface(contact);
 
           showStatus("Loading messages...", "success");
@@ -1272,7 +1472,7 @@
         }
       }
 
-      // FIXED: Enhanced send message function that preserves sent messages
+      // Enhanced send message function that preserves sent messages
       async function sendMessage() {
         const input = document.getElementById("messageInput");
         const sendBtn = document.getElementById("sendBtn");
@@ -1340,7 +1540,7 @@
             updateMessageStatus(messageId, "failed");
           }
         } catch (error) {
-          //console.error("Error sending message:", error);
+          console.error("Error sending message:", error);
           newMessage.status = "failed";
           updateMessageStatus(messageId, "failed");
           showStatus(`Error: ${error.message}`, "error");
@@ -1406,7 +1606,7 @@
           const result = await response.json();
           return result.message || { success: false, error: "Unknown error" };
         } catch (error) {
-          //console.error("API Error:", error);
+          console.error("API Error:", error);
           throw error;
         }
       }
@@ -1427,7 +1627,7 @@
           const result = await response.json();
           return result.data || [];
         } catch (error) {
-          //console.error("Error fetching WhatsApp contacts:", error);
+          console.error("Error fetching WhatsApp contacts:", error);
           showStatus(`Error loading contacts: ${error.message}`, "error");
           return [];
         }
@@ -1449,7 +1649,7 @@
             time: formatTime(
               contact.modified || contact.creation || new Date().toISOString()
             ),
-            unread: 0,
+            unread: unreadMessages.get(phoneNumber) || 0,
             status: contact.opt_in_status || "click here for contact info",
             isBusiness: 0,
             profilePicture: null,
@@ -1537,7 +1737,7 @@
           populateContactList();
           showStatus("Contacts loaded successfully!", "success");
         } catch (error) {
-          //console.error("Error loading contacts:", error);
+          console.error("Error loading contacts:", error);
           document.getElementById("chatList").innerHTML =
             '<div class="loading">Error loading contacts</div>';
           showStatus("Failed to load contacts", "error");
@@ -1561,7 +1761,7 @@
         });
       }
 
-      // Create contact item
+      // Enhanced create contact item with unread badge
       function createContactItem(contact) {
         const chatItem = document.createElement("div");
         chatItem.className = "chat-item";
@@ -1571,25 +1771,28 @@
           ? '<i class="fas fa-building" style="color: #00a884; margin-right: 5px;"></i>'
           : "";
 
+        const unreadBadge = contact.unread > 0
+          ? `<div class="unread-badge">${contact.unread > 99 ? '99+' : contact.unread}</div>`
+          : "";
+
         chatItem.innerHTML = `
                 <div class="chat-avatar">${contact.avatar}</div>
                 <div class="chat-info">
                     <div class="chat-header-info">
-                        <div class="chat-name">${businessIcon}${
-          contact.name
-        }</div>
+                        <div class="chat-name">${businessIcon}${contact.name}</div>
                         <div class="chat-time">${contact.time}</div>
                     </div>
                     <div class="chat-last-message">
                         ${contact.lastMessage}
-                        ${
-                          contact.unread > 0
-                            ? `<div class="unread-badge">${contact.unread}</div>`
-                            : ""
-                        }
+                        ${unreadBadge}
                     </div>
                 </div>
             `;
+
+        // Add highlight if there are unread messages
+        if (contact.unread > 0) {
+          chatItem.classList.add('has-new-messages');
+        }
 
         chatItem.addEventListener("click", () => selectContact(contact.id));
         return chatItem;
@@ -1609,7 +1812,7 @@
           contact.avatar;
       }
 
-      // FIXED: Load messages for contact with proper merging
+      // Load messages for contact with proper merging
       async function loadMessagesForContact(contact) {
         try {
           const serverMessages = await fetchMessagesForContact(contact.phoneNumber);
@@ -1657,7 +1860,7 @@
             "success"
           );
         } catch (error) {
-          //console.error("Error loading messages for contact:", error);
+          console.error("Error loading messages for contact:", error);
           showStatus("Failed to load messages", "error");
 
           const messagesArea = document.getElementById("messagesArea");
@@ -1679,7 +1882,23 @@
             const statusIcon = contact.lastMessage.startsWith("You:")
               ? '<i class="fas fa-check-double message-status"></i>'
               : "";
+            
+            // Remove existing unread badge
+            const existingBadge = lastMessageEl.querySelector('.unread-badge');
+            if (existingBadge) {
+              existingBadge.remove();
+            }
+            
             lastMessageEl.innerHTML = `${statusIcon}${contact.lastMessage}`;
+            
+            // Add unread badge if needed
+            const unreadCount = unreadMessages.get(contact.phoneNumber) || 0;
+            if (unreadCount > 0) {
+              const badge = document.createElement('div');
+              badge.className = 'unread-badge';
+              badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+              lastMessageEl.appendChild(badge);
+            }
           }
 
           if (timeEl) {
@@ -1843,7 +2062,7 @@
             });
           });
 
-        // Filter tabs
+        // Enhanced filter tabs with unread count
         document.querySelectorAll(".filter-tab").forEach((tab) => {
           tab.addEventListener("click", () => {
             document
@@ -1875,7 +2094,7 @@
         });
       }
 
-      // Filter contacts based on type
+      // Enhanced filter contacts function
       function filterContacts(filterType) {
         const contactItems = document.querySelectorAll(".chat-item");
 
@@ -1887,7 +2106,8 @@
 
           switch (filterType) {
             case "unread":
-              item.style.display = contact.unread > 0 ? "flex" : "none";
+              const unreadCount = unreadMessages.get(contact.phoneNumber) || 0;
+              item.style.display = unreadCount > 0 ? "flex" : "none";
               break;
             case "favourites":
               item.style.display = contactId <= 3 ? "flex" : "none";
@@ -1901,7 +2121,7 @@
         });
       }
 
-      // Auto-refresh contacts
+      // Auto-refresh contacts with unread count preservation
       function startContactPolling() {
         setInterval(async () => {
           try {
@@ -1910,6 +2130,16 @@
 
             if (newContactData.length !== contactData.length) {
               const currentSelected = currentContactId;
+              
+              // Preserve unread counts when updating contact list
+              newContactData.forEach(newContact => {
+                const existingContact = contactData.find(c => c.phoneNumber === newContact.phoneNumber);
+                if (existingContact) {
+                  newContact.unread = existingContact.unread;
+                  newContact.messages = existingContact.messages;
+                }
+              });
+              
               contactData = newContactData;
               populateContactList();
 
@@ -1925,7 +2155,7 @@
               showStatus("Contacts updated", "success");
             }
           } catch (error) {
-            //console.error("Auto-refresh error:", error);
+            console.error("Auto-refresh error:", error);
           }
         }, POLLING_CONFIG.contactPollingInterval);
       }
@@ -1936,10 +2166,13 @@
         await loadContactsFromAPI();
         setupEventListeners();
         startContactPolling();
+        
+        // NEW: Start global message polling for all contacts
+        startGlobalMessagePolling();
 
         // Show initial status
         showStatus(
-          "WhatsApp interface ready for real-time messaging!",
+          "WhatsApp interface ready for real-time messaging with notifications!",
           "success"
         );
       }
@@ -1957,21 +2190,27 @@
         initApp();
       });
 
-      // Debug utilities
+      // Enhanced debug utilities
       window.whatsappDebug = {
         contactData,
         currentContactId,
         currentContactPhone,
         lastMessageTimestamp,
         pendingSentMessages,
+        unreadMessages,
+        lastReadTimestamp,
         startMessagePolling,
         stopMessagePolling,
         checkForNewMessages,
+        checkForNewMessagesInAllContacts,
+        markMessagesAsRead,
+        incrementUnreadCount,
         sendMessage,
         POLLING_CONFIG,
       };
 
-      console.log("Fixed WhatsApp Interface loaded - messages will now persist!");
+      console.log("Enhanced WhatsApp Interface with Notifications loaded!");
+      console.log("Features: Message persistence, unread badges, real-time notifications");
       console.log("Debug functions available at: window.whatsappDebug");
     </script>
   </body>
