@@ -911,7 +911,7 @@
 
           throw new Error("CSRF token not found");
         } catch (error) {
-          console.error("Error getting CSRF token:", error);
+          // console.error("Error getting CSRF token:", error);
           return null;
         }
       }
@@ -989,7 +989,7 @@
             );
           }
         } catch (error) {
-          console.error("Error fetching messages for contact:", error);
+          //console.error("Error fetching messages for contact:", error);
           return [];
         }
       }
@@ -1067,7 +1067,7 @@
 
           hideUpdateIndicator();
         } catch (error) {
-          console.error("Error checking for new messages:", error);
+          //console.error("Error checking for new messages:", error);
           hideUpdateIndicator();
         }
       }
@@ -1147,7 +1147,7 @@
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.1);
           } catch (error) {
-            console.log("Could not play notification sound:", error);
+            //console.log("Could not play notification sound:", error);
           }
         }
       }
@@ -1288,7 +1288,7 @@
             updateMessageStatus(messageId, "failed");
           }
         } catch (error) {
-          console.error("Error sending message:", error);
+          //console.error("Error sending message:", error);
           newMessage.status = "failed";
           updateMessageStatus(messageId, "failed");
           showStatus(`Error: ${error.message}`, "error");
@@ -1354,7 +1354,7 @@
           const result = await response.json();
           return result.message || { success: false, error: "Unknown error" };
         } catch (error) {
-          console.error("API Error:", error);
+          //console.error("API Error:", error);
           throw error;
         }
       }
@@ -1375,7 +1375,7 @@
           const result = await response.json();
           return result.data || [];
         } catch (error) {
-          console.error("Error fetching WhatsApp contacts:", error);
+          //console.error("Error fetching WhatsApp contacts:", error);
           showStatus(`Error loading contacts: ${error.message}`, "error");
           return [];
         }
@@ -1485,7 +1485,7 @@
           populateContactList();
           showStatus("Contacts loaded successfully!", "success");
         } catch (error) {
-          console.error("Error loading contacts:", error);
+          //console.error("Error loading contacts:", error);
           document.getElementById("chatList").innerHTML =
             '<div class="loading">Error loading contacts</div>';
           showStatus("Failed to load contacts", "error");
@@ -1559,6 +1559,7 @@
 
       // Load messages for contact
       async function loadMessagesForContact(contact) {
+        console.log("loadMessagesForContact", contact);
         try {
           const messages = await fetchMessagesForContact(contact.phoneNumber);
 
@@ -1602,7 +1603,7 @@
             "success"
           );
         } catch (error) {
-          console.error("Error loading messages for contact:", error);
+          //console.error("Error loading messages for contact:", error);
           showStatus("Failed to load messages", "error");
 
           const messagesArea = document.getElementById("messagesArea");
@@ -1635,6 +1636,7 @@
 
       // Display messages
       function displayMessages(contact) {
+        console.log("contacts", contact);
         const messagesArea = document.getElementById("messagesArea");
         messagesArea.innerHTML = "";
 
@@ -1661,6 +1663,7 @@
 
       // Create message element
       function createMessageElement(message) {
+        console.log("messages", message);
         const messageDiv = document.createElement("div");
         messageDiv.className = `message ${message.sent ? "sent" : "received"}`;
         messageDiv.setAttribute("data-message-id", message.messageId || "");
@@ -1870,7 +1873,7 @@
               showStatus("Contacts updated", "success");
             }
           } catch (error) {
-            console.error("Auto-refresh error:", error);
+            //console.error("Auto-refresh error:", error);
           }
         }, POLLING_CONFIG.contactPollingInterval);
       }
@@ -1915,7 +1918,7 @@
         POLLING_CONFIG,
       };
 
-      console.log(
+      /*  console.log(
         "Enhanced WhatsApp Interface with Real-time Updates loaded successfully!"
       );
       console.log("Features enabled:");
@@ -1931,7 +1934,7 @@
       );
       console.log("- New message notifications");
       console.log("- Automatic scroll management");
-      console.log("- Debug functions available at: window.whatsappDebug");
+      console.log("- Debug functions available at: window.whatsappDebug"); */
     </script>
   </body>
 </html>
