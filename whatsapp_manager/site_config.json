@@ -8,6 +8,7 @@
   "user_type_doctype_limit": {
     "employee_self_service": 40
   },
+  "developer_mode": 1,
   "ignore_csrf": [
     "/api/method/whatsapp_manager.api.webhook.handle_gupshup_webhook",
     "/api/method/whatsapp_manager.api.webhook.test_webhook"

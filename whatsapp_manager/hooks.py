@@ -18,12 +18,8 @@ website_route_rules = [
 ]
 # In your custom app's hooks.py file, add:
 
-doc_events = {
-    "WhatsApp Message": {
-        "validate": "whatsapp_manager.api.chat.validate",
-        "on_update": "whatsapp_manager.api.chat.on_update"
-    }
-}
+
+
 
 # Optional: Auto-retry failed messages every 5 minutes
 scheduler_events = {
