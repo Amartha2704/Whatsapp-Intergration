@@ -895,13 +895,13 @@
       let messagePollingInterval = null;
       let lastMessageTimestamp = {};
       let isAtBottom = true;
-      
+
       // Store sent messages that haven't been confirmed by server yet
       let pendingSentMessages = new Map(); // phoneNumber -> array of messages
-      
+
       // NEW: Track unread messages for each contact
       let unreadMessages = new Map(); // phoneNumber -> unread count
-      
+
       // NEW: Track last read timestamp for each contact
       let lastReadTimestamp = new Map(); // phoneNumber -> timestamp
 
@@ -1000,16 +1000,19 @@
           const result = await response.json();
 
           if (result.message && result.message.status === "success") {
-            const messages = result.message.messages || [];
+            let messages = result.message.messages || [];
 
             // Filter messages since timestamp if provided
             if (sinceTimestamp) {
-              return messages.filter(
+              messages = messages.filter(
                 (msg) =>
                   new Date(msg.timestamp || msg.creation).getTime() >
                   sinceTimestamp
               );
             }
+
+            // Store messages in persistent storage
+            saveMessagesToStorage(phoneNumber, messages);
 
             return messages;
           } else {
@@ -1018,8 +1021,200 @@
             );
           }
         } catch (error) {
+          console.error("Error fetching messages:", error);
+          // Return cached messages if API fails
+          return getMessagesFromStorage(phoneNumber);
+        }
+      }
+
+      // NEW: Function to save messages to sessionStorage with better error handling
+      function saveMessagesToStorage(phoneNumber, messages) {
+        try {
+          const storageKey = `whatsapp_messages_${phoneNumber}`;
+          const messageData = {
+            phoneNumber: phoneNumber,
+            messages: messages,
+            lastUpdated: Date.now(),
+            version: 1,
+          };
+
+          const dataString = JSON.stringify(messageData);
+
+          // Check if data is too large for sessionStorage
+          if (dataString.length > 5 * 1024 * 1024) {
+            // 5MB limit
+            console.warn(
+              "Message data too large for storage, keeping only recent messages"
+            );
+            // Keep only last 50 messages
+            messageData.messages = messages.slice(-50);
+          }
+
+          sessionStorage.setItem(storageKey, JSON.stringify(messageData));
+        } catch (error) {
+          console.error("Error saving messages to storage:", error);
+          // Clear some old data if storage is full
+          try {
+            clearOldMessagesFromStorage();
+            sessionStorage.setItem(
+              `whatsapp_messages_${phoneNumber}`,
+              JSON.stringify({
+                phoneNumber: phoneNumber,
+                messages: messages.slice(-30), // Keep only last 30 messages
+                lastUpdated: Date.now(),
+                version: 1,
+              })
+            );
+          } catch (retryError) {
+            console.error(
+              "Failed to save messages even after cleanup:",
+              retryError
+            );
+          }
+        }
+      }
+
+      // NEW: Function to get messages from sessionStorage
+      function getMessagesFromStorage(phoneNumber) {
+        try {
+          const storageKey = `whatsapp_messages_${phoneNumber}`;
+          const storedData = sessionStorage.getItem(storageKey);
+
+          if (storedData) {
+            const messageData = JSON.parse(storedData);
+            return messageData.messages || [];
+          }
+
+          return [];
+        } catch (error) {
+          console.error("Error reading messages from storage:", error);
           return [];
         }
+      }
+
+      // NEW: Function to clear old messages from storage to free up space
+      function clearOldMessagesFromStorage() {
+        try {
+          const keys = Object.keys(sessionStorage);
+          const messageKeys = keys.filter((key) =>
+            key.startsWith("whatsapp_messages_")
+          );
+
+          // Sort by last updated and remove oldest entries
+          const keyData = messageKeys
+            .map((key) => {
+              try {
+                const data = JSON.parse(sessionStorage.getItem(key));
+                return { key, lastUpdated: data.lastUpdated || 0 };
+              } catch {
+                return { key, lastUpdated: 0 };
+              }
+            })
+            .sort((a, b) => a.lastUpdated - b.lastUpdated);
+
+          // Remove oldest 25% of stored conversations
+          const toRemove = Math.floor(keyData.length * 0.25);
+          for (let i = 0; i < toRemove; i++) {
+            sessionStorage.removeItem(keyData[i].key);
+          }
+        } catch (error) {
+          console.error("Error clearing old messages:", error);
+        }
+      }
+
+      // NEW: Function to save all app state to sessionStorage
+      function saveAppState() {
+        try {
+          const appState = {
+            currentContactId,
+            currentContactPhone,
+            lastMessageTimestamp,
+            unreadMessages: Object.fromEntries(unreadMessages),
+            lastReadTimestamp: Object.fromEntries(lastReadTimestamp),
+            contactData: contactData.map((contact) => ({
+              ...contact,
+              messages: [], // Don't duplicate messages in app state
+            })),
+            lastSaved: Date.now(),
+          };
+
+          sessionStorage.setItem(
+            "whatsapp_app_state",
+            JSON.stringify(appState)
+          );
+        } catch (error) {
+          console.error("Error saving app state:", error);
+        }
+      }
+
+      // NEW: Function to restore app state from sessionStorage
+      function restoreAppState() {
+        try {
+          const storedState = sessionStorage.getItem("whatsapp_app_state");
+          if (storedState) {
+            const appState = JSON.parse(storedState);
+
+            // Restore state variables
+            currentContactId = appState.currentContactId;
+            currentContactPhone = appState.currentContactPhone;
+            lastMessageTimestamp = appState.lastMessageTimestamp || {};
+            unreadMessages = new Map(
+              Object.entries(appState.unreadMessages || {})
+            );
+            lastReadTimestamp = new Map(
+              Object.entries(appState.lastReadTimestamp || {})
+            );
+
+            // Restore contact data
+            if (appState.contactData && appState.contactData.length > 0) {
+              contactData = appState.contactData;
+
+              // Load messages for each contact from storage
+              contactData.forEach((contact) => {
+                const storedMessages = getMessagesFromStorage(
+                  contact.phoneNumber
+                );
+                contact.messages = processStoredMessages(
+                  storedMessages,
+                  contact.phoneNumber
+                );
+              });
+
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          console.error("Error restoring app state:", error);
+          return false;
+        }
+      }
+
+      // NEW: Function to process stored messages into the correct format
+      function processStoredMessages(serverMessages, phoneNumber) {
+        if (!serverMessages || serverMessages.length === 0) return [];
+
+        const ourNumber = "919746574552";
+
+        return serverMessages
+          .map((message, index) => {
+            const msgSource = message.source?.toString();
+            const isSent = msgSource === ourNumber;
+
+            return {
+              id: index + 1,
+              text: message.message || "",
+              sent: isSent,
+              time: formatTime(message.timestamp || message.creation),
+              timestamp: new Date(
+                message.timestamp || message.creation
+              ).getTime(),
+              status: message.status || "delivered",
+              messageId: message.message_id || generateMessageId(),
+              creation: message.creation || message.timestamp,
+            };
+          })
+          .sort((a, b) => a.timestamp - b.timestamp);
       }
 
       // Function to merge server messages with pending sent messages
@@ -1030,11 +1225,14 @@
         // Add pending sent messages that aren't in server messages yet
         for (const pendingMsg of pending) {
           // Check if this message exists in server messages
-          const existsInServer = serverMessages.some(msg => 
-            msg.message_id === pendingMsg.messageId || 
-            (msg.message === pendingMsg.text && Math.abs(
-              new Date(msg.timestamp || msg.creation).getTime() - pendingMsg.timestamp
-            ) < 30000) // Within 30 seconds
+          const existsInServer = serverMessages.some(
+            (msg) =>
+              msg.message_id === pendingMsg.messageId ||
+              (msg.message === pendingMsg.text &&
+                Math.abs(
+                  new Date(msg.timestamp || msg.creation).getTime() -
+                    pendingMsg.timestamp
+                ) < 30000) // Within 30 seconds
           );
 
           if (!existsInServer) {
@@ -1042,9 +1240,10 @@
             allMessages.push({
               message: pendingMsg.text,
               timestamp: new Date(pendingMsg.timestamp).toISOString(),
+              creation: new Date(pendingMsg.timestamp).toISOString(),
               source: "919746574552", // Our number
               message_id: pendingMsg.messageId,
-              status: pendingMsg.status
+              status: pendingMsg.status,
             });
           } else {
             // Message found in server, remove from pending
@@ -1070,15 +1269,18 @@
         const currentTime = Date.now();
         lastReadTimestamp.set(phoneNumber, currentTime);
         unreadMessages.set(phoneNumber, 0);
-        
+
         // Update UI immediately
         updateContactUnreadBadge(phoneNumber);
-        
+
         // Also update the contact data
-        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        const contact = contactData.find((c) => c.phoneNumber === phoneNumber);
         if (contact) {
           contact.unread = 0;
         }
+
+        // Save state
+        saveAppState();
       }
 
       // NEW: Function to increment unread count for a contact
@@ -1086,45 +1288,48 @@
         const currentUnread = unreadMessages.get(phoneNumber) || 0;
         const newUnread = currentUnread + messageCount;
         unreadMessages.set(phoneNumber, newUnread);
-        
+
         // Update contact data
-        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        const contact = contactData.find((c) => c.phoneNumber === phoneNumber);
         if (contact) {
           contact.unread = newUnread;
         }
-        
+
         updateContactUnreadBadge(phoneNumber);
+        saveAppState();
       }
 
       // NEW: Function to update unread badge in UI
       function updateContactUnreadBadge(phoneNumber) {
-        const contact = contactData.find(c => c.phoneNumber === phoneNumber);
+        const contact = contactData.find((c) => c.phoneNumber === phoneNumber);
         if (!contact) return;
 
-        const contactItem = document.querySelector(`[data-contact-id="${contact.id}"]`);
+        const contactItem = document.querySelector(
+          `[data-contact-id="${contact.id}"]`
+        );
         if (!contactItem) return;
 
-        const lastMessageEl = contactItem.querySelector('.chat-last-message');
+        const lastMessageEl = contactItem.querySelector(".chat-last-message");
         const unreadCount = unreadMessages.get(phoneNumber) || 0;
 
         // Remove existing badge
-        const existingBadge = lastMessageEl.querySelector('.unread-badge');
+        const existingBadge = lastMessageEl.querySelector(".unread-badge");
         if (existingBadge) {
           existingBadge.remove();
         }
 
         // Add new badge if there are unread messages
         if (unreadCount > 0) {
-          const badge = document.createElement('div');
-          badge.className = 'unread-badge';
-          badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+          const badge = document.createElement("div");
+          badge.className = "unread-badge";
+          badge.textContent = unreadCount > 99 ? "99+" : unreadCount.toString();
           lastMessageEl.appendChild(badge);
-          
+
           // Add visual highlight to the chat item
-          contactItem.classList.add('has-new-messages');
+          contactItem.classList.add("has-new-messages");
         } else {
           // Remove visual highlight
-          contactItem.classList.remove('has-new-messages');
+          contactItem.classList.remove("has-new-messages");
         }
       }
 
@@ -1137,7 +1342,8 @@
             // Skip current active contact (it's handled separately)
             if (contact.phoneNumber === currentContactPhone) continue;
 
-            const lastTimestamp = lastMessageTimestamp[contact.phoneNumber] || 0;
+            const lastTimestamp =
+              lastMessageTimestamp[contact.phoneNumber] || 0;
             const newMessages = await fetchMessagesForContact(
               contact.phoneNumber,
               lastTimestamp
@@ -1169,7 +1375,8 @@
 
               // Update last message info
               if (processedNewMessages.length > 0) {
-                const lastMessage = processedNewMessages[processedNewMessages.length - 1];
+                const lastMessage =
+                  processedNewMessages[processedNewMessages.length - 1];
                 contact.lastMessage = lastMessage.sent
                   ? `You: ${lastMessage.text}`
                   : lastMessage.text;
@@ -1181,17 +1388,22 @@
                 );
 
                 // Count received messages for unread badge
-                const receivedMessages = processedNewMessages.filter(m => !m.sent);
+                const receivedMessages = processedNewMessages.filter(
+                  (m) => !m.sent
+                );
                 if (receivedMessages.length > 0) {
-                  incrementUnreadCount(contact.phoneNumber, receivedMessages.length);
-                  
+                  incrementUnreadCount(
+                    contact.phoneNumber,
+                    receivedMessages.length
+                  );
+
                   // Show notification for received messages
                   showNewMessageNotification(
-                    receivedMessages.length, 
+                    receivedMessages.length,
                     contact.name,
                     receivedMessages[receivedMessages.length - 1].text
                   );
-                  
+
                   // Play notification sound
                   playNotificationSound();
                 }
@@ -1203,8 +1415,12 @@
           }
 
           hideUpdateIndicator();
+          saveAppState(); // Save after checking for new messages
         } catch (error) {
-          console.error("Error checking for new messages in all contacts:", error);
+          console.error(
+            "Error checking for new messages in all contacts:",
+            error
+          );
           hideUpdateIndicator();
         }
       }
@@ -1282,6 +1498,8 @@
                   playNotificationSound();
                 }
               }
+
+              saveAppState(); // Save after new messages
             }
           }
         } catch (error) {
@@ -1314,21 +1532,29 @@
       }
 
       // Enhanced function to show new message notification
-      function showNewMessageNotification(messageCount, contactName = null, lastMessage = null) {
+      function showNewMessageNotification(
+        messageCount,
+        contactName = null,
+        lastMessage = null
+      ) {
         const notification = document.getElementById("newMessageNotification");
         const notificationText = document.getElementById("notificationText");
 
         let notificationMessage;
         if (contactName && lastMessage) {
           if (messageCount === 1) {
-            notificationMessage = `${contactName}: ${lastMessage.substring(0, 30)}${lastMessage.length > 30 ? '...' : ''}`;
+            notificationMessage = `${contactName}: ${lastMessage.substring(
+              0,
+              30
+            )}${lastMessage.length > 30 ? "..." : ""}`;
           } else {
             notificationMessage = `${contactName}: ${messageCount} new messages`;
           }
         } else {
-          notificationMessage = messageCount === 1
-            ? "New message received"
-            : `${messageCount} new messages received`;
+          notificationMessage =
+            messageCount === 1
+              ? "New message received"
+              : `${messageCount} new messages received`;
         }
 
         notificationText.textContent = notificationMessage;
@@ -1341,9 +1567,13 @@
 
         // Click to scroll to bottom or switch to contact
         notification.onclick = () => {
-          if (contactName && contactName !== document.getElementById("chatContactName").textContent) {
+          if (
+            contactName &&
+            contactName !==
+              document.getElementById("chatContactName").textContent
+          ) {
             // Switch to the contact that sent the message
-            const contact = contactData.find(c => c.name === contactName);
+            const contact = contactData.find((c) => c.name === contactName);
             if (contact) {
               selectContact(contact.id);
             }
@@ -1418,7 +1648,7 @@
       // NEW: Start global message polling for all contacts
       function startGlobalMessagePolling() {
         setInterval(() => {
-          checkForNewMessagesInAllContacts();
+          //checkForNewMessagesInAllContacts();
         }, POLLING_CONFIG.globalMessagePollingInterval);
       }
 
@@ -1451,10 +1681,10 @@
 
         if (contact) {
           currentContactPhone = contact.phoneNumber;
-          
+
           // Mark messages as read when selecting a contact
           markMessagesAsRead(contact.phoneNumber);
-          
+
           showChatInterface(contact);
 
           showStatus("Loading messages...", "success");
@@ -1469,6 +1699,9 @@
 
           // Start polling for this contact
           startMessagePolling();
+
+          // Save state after selecting contact
+          saveAppState();
         }
       }
 
@@ -1547,6 +1780,18 @@
         } finally {
           sendBtn.classList.remove("sending");
           sendBtn.disabled = false;
+
+          // Save messages after sending
+          const allMessages = contact.messages.map((msg) => ({
+            message: msg.text,
+            timestamp: new Date(msg.timestamp).toISOString(),
+            creation: new Date(msg.timestamp).toISOString(),
+            source: msg.sent ? "919746574552" : contact.phoneNumber,
+            message_id: msg.messageId,
+            status: msg.status,
+          }));
+          saveMessagesToStorage(currentContactPhone, allMessages);
+          saveAppState();
         }
       }
 
@@ -1722,8 +1967,47 @@
         }, 3000);
       }
 
-      // Load contacts from API
+      // Enhanced load contacts from API with state restoration
       async function loadContactsFromAPI() {
+        try {
+          // Try to restore from storage first
+          const restoredFromStorage = restoreAppState();
+
+          if (restoredFromStorage && contactData.length > 0) {
+            populateContactList();
+            showStatus("Contacts restored from cache!", "success");
+
+            // If we have a previously selected contact, restore it
+            if (currentContactId) {
+              const contact = contactData.find(
+                (c) => c.id === currentContactId
+              );
+              if (contact) {
+                setTimeout(() => {
+                  selectContact(currentContactId);
+                }, 100);
+              }
+            }
+
+            // Still fetch fresh data in background
+            setTimeout(() => {
+              refreshContactsFromAPI();
+            }, 1000);
+            return;
+          }
+
+          // If no cached data, load fresh from API
+          await refreshContactsFromAPI();
+        } catch (error) {
+          console.error("Error loading contacts:", error);
+          document.getElementById("chatList").innerHTML =
+            '<div class="loading">Error loading contacts</div>';
+          showStatus("Failed to load contacts", "error");
+        }
+      }
+
+      // NEW: Function to refresh contacts from API
+      async function refreshContactsFromAPI() {
         try {
           const contacts = await fetchWhatsAppContacts();
 
@@ -1733,14 +2017,29 @@
             return;
           }
 
-          contactData = processContactsIntoChats(contacts);
+          const newContactData = processContactsIntoChats(contacts);
+
+          // Preserve existing messages and state when refreshing
+          if (contactData.length > 0) {
+            newContactData.forEach((newContact) => {
+              const existingContact = contactData.find(
+                (c) => c.phoneNumber === newContact.phoneNumber
+              );
+              if (existingContact) {
+                newContact.messages = existingContact.messages;
+                newContact.unread = existingContact.unread;
+                newContact.lastMessage = existingContact.lastMessage;
+              }
+            });
+          }
+
+          contactData = newContactData;
           populateContactList();
-          showStatus("Contacts loaded successfully!", "success");
+          saveAppState();
+          showStatus("Contacts updated!", "success");
         } catch (error) {
-          console.error("Error loading contacts:", error);
-          document.getElementById("chatList").innerHTML =
-            '<div class="loading">Error loading contacts</div>';
-          showStatus("Failed to load contacts", "error");
+          console.error("Error refreshing contacts:", error);
+          showStatus("Failed to refresh contacts", "error");
         }
       }
 
@@ -1771,9 +2070,12 @@
           ? '<i class="fas fa-building" style="color: #00a884; margin-right: 5px;"></i>'
           : "";
 
-        const unreadBadge = contact.unread > 0
-          ? `<div class="unread-badge">${contact.unread > 99 ? '99+' : contact.unread}</div>`
-          : "";
+        const unreadBadge =
+          contact.unread > 0
+            ? `<div class="unread-badge">${
+                contact.unread > 99 ? "99+" : contact.unread
+              }</div>`
+            : "";
 
         chatItem.innerHTML = `
                 <div class="chat-avatar">${contact.avatar}</div>
@@ -1791,7 +2093,7 @@
 
         // Add highlight if there are unread messages
         if (contact.unread > 0) {
-          chatItem.classList.add('has-new-messages');
+          chatItem.classList.add("has-new-messages");
         }
 
         chatItem.addEventListener("click", () => selectContact(contact.id));
@@ -1812,33 +2114,57 @@
           contact.avatar;
       }
 
-      // Load messages for contact with proper merging
+      // Enhanced load messages for contact with storage integration
       async function loadMessagesForContact(contact) {
         try {
-          const serverMessages = await fetchMessagesForContact(contact.phoneNumber);
-          
-          // Merge server messages with any pending sent messages
-          const allMessages = mergeMessagesWithPending(serverMessages, contact.phoneNumber);
+          // First try to load from storage for immediate display
+          const cachedMessages = getMessagesFromStorage(contact.phoneNumber);
+          if (cachedMessages.length > 0) {
+            const processedCachedMessages = processStoredMessages(
+              cachedMessages,
+              contact.phoneNumber
+            );
+            contact.messages = processedCachedMessages;
+            displayMessages(contact);
+            showStatus(
+              `${processedCachedMessages.length} cached messages loaded!`,
+              "success"
+            );
+          }
 
-          const processedMessages = allMessages.map((message, index) => {
-            const ourNumber = "919746574552";
-            const msgSource = message.source?.toString();
-            const isSent = msgSource === ourNumber;
+          // Then fetch fresh messages from server
+          const serverMessages = await fetchMessagesForContact(
+            contact.phoneNumber
+          );
+          const allMessages = mergeMessagesWithPending(
+            serverMessages,
+            contact.phoneNumber
+          );
 
-            return {
-              id: index + 1,
-              text: message.message || "",
-              sent: isSent,
-              time: formatTime(message.timestamp || message.creation),
-              timestamp: new Date(
-                message.timestamp || message.creation
-              ).getTime(),
-              status: message.status || "delivered",
-              messageId: message.message_id || generateMessageId(),
-            };
-          });
+          const processedMessages = allMessages
+            .sort(
+              (a, b) =>
+                new Date(a.creation || a.timestamp) -
+                new Date(b.creation || b.timestamp)
+            )
+            .map((message, index) => {
+              const ourNumber = "919746574552";
+              const msgSource = message.source?.toString();
+              const isSent = msgSource === ourNumber;
 
-          processedMessages.sort((a, b) => a.timestamp - b.timestamp);
+              return {
+                id: index + 1,
+                text: message.message || "",
+                sent: isSent,
+                time: formatTime(message.creation || message.timestamp),
+                creation: message.creation || message.timestamp,
+                timestamp: new Date(
+                  message.creation || message.timestamp
+                ).getTime(),
+                status: message.status || "delivered",
+                messageId: message.message_id || generateMessageId(),
+              };
+            });
 
           contact.messages = processedMessages;
 
@@ -1849,12 +2175,22 @@
               : lastMessage.text;
             contact.time = lastMessage.time;
             updateContactItemLastMessage(contact);
+
+            // Update timestamp tracker
+            lastMessageTimestamp[contact.phoneNumber] = Math.max(
+              ...processedMessages.map((m) => m.timestamp)
+            );
           } else {
             contact.lastMessage = "No messages yet";
             contact.time = "Start a conversation";
           }
 
           displayMessages(contact);
+
+          // Save fresh messages to storage
+          saveMessagesToStorage(contact.phoneNumber, allMessages);
+          saveAppState();
+
           showStatus(
             `${processedMessages.length} messages loaded for ${contact.name}!`,
             "success"
@@ -1882,21 +2218,22 @@
             const statusIcon = contact.lastMessage.startsWith("You:")
               ? '<i class="fas fa-check-double message-status"></i>'
               : "";
-            
+
             // Remove existing unread badge
-            const existingBadge = lastMessageEl.querySelector('.unread-badge');
+            const existingBadge = lastMessageEl.querySelector(".unread-badge");
             if (existingBadge) {
               existingBadge.remove();
             }
-            
+
             lastMessageEl.innerHTML = `${statusIcon}${contact.lastMessage}`;
-            
+
             // Add unread badge if needed
             const unreadCount = unreadMessages.get(contact.phoneNumber) || 0;
             if (unreadCount > 0) {
-              const badge = document.createElement('div');
-              badge.className = 'unread-badge';
-              badge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+              const badge = document.createElement("div");
+              badge.className = "unread-badge";
+              badge.textContent =
+                unreadCount > 99 ? "99+" : unreadCount.toString();
               lastMessageEl.appendChild(badge);
             }
           }
@@ -2028,7 +2365,7 @@
         refreshBtn.addEventListener("click", async () => {
           refreshBtn.querySelector("i").style.animation =
             "spin 1s linear infinite";
-          await loadContactsFromAPI();
+          await refreshContactsFromAPI();
           refreshBtn.querySelector("i").style.animation = "";
         });
 
@@ -2092,6 +2429,16 @@
             }
           }
         });
+
+        // Save app state periodically
+        setInterval(() => {
+          saveAppState();
+        }, 30000); // Save every 30 seconds
+
+        // Save app state when page is about to unload
+        window.addEventListener("beforeunload", () => {
+          saveAppState();
+        });
       }
 
       // Enhanced filter contacts function
@@ -2130,16 +2477,19 @@
 
             if (newContactData.length !== contactData.length) {
               const currentSelected = currentContactId;
-              
-              // Preserve unread counts when updating contact list
-              newContactData.forEach(newContact => {
-                const existingContact = contactData.find(c => c.phoneNumber === newContact.phoneNumber);
+
+              // Preserve unread counts and messages when updating contact list
+              newContactData.forEach((newContact) => {
+                const existingContact = contactData.find(
+                  (c) => c.phoneNumber === newContact.phoneNumber
+                );
                 if (existingContact) {
                   newContact.unread = existingContact.unread;
                   newContact.messages = existingContact.messages;
+                  newContact.lastMessage = existingContact.lastMessage;
                 }
               });
-              
+
               contactData = newContactData;
               populateContactList();
 
@@ -2152,6 +2502,7 @@
                 }
               }
 
+              saveAppState();
               showStatus("Contacts updated", "success");
             }
           } catch (error) {
@@ -2166,13 +2517,13 @@
         await loadContactsFromAPI();
         setupEventListeners();
         startContactPolling();
-        
+
         // NEW: Start global message polling for all contacts
         startGlobalMessagePolling();
 
         // Show initial status
         showStatus(
-          "WhatsApp interface ready for real-time messaging with notifications!",
+          "WhatsApp interface ready! Messages will persist on refresh.",
           "success"
         );
       }
@@ -2180,6 +2531,7 @@
       // Cleanup function
       function cleanup() {
         stopMessagePolling();
+        saveAppState(); // Save state on cleanup
       }
 
       // Handle page unload
@@ -2206,11 +2558,20 @@
         markMessagesAsRead,
         incrementUnreadCount,
         sendMessage,
+        saveAppState,
+        restoreAppState,
+        saveMessagesToStorage,
+        getMessagesFromStorage,
+        clearOldMessagesFromStorage,
         POLLING_CONFIG,
       };
 
-      console.log("Enhanced WhatsApp Interface with Notifications loaded!");
-      console.log("Features: Message persistence, unread badges, real-time notifications");
+      console.log(
+        "Enhanced WhatsApp Interface with Message Persistence loaded!"
+      );
+      console.log(
+        "Features: Message persistence, unread badges, real-time notifications, storage management"
+      );
       console.log("Debug functions available at: window.whatsappDebug");
     </script>
   </body>
