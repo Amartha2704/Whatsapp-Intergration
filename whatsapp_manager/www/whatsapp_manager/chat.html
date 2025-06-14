@@ -883,8 +883,8 @@
       // Configuration
       const FRAPPE_CONFIG = {
         baseUrl: "https://smartschool.prismaticsoft.com",
-        username: "7f577473715e8d5",
-        password: "3f4947766bff048",
+        apiKey: "7f577473715e8d5",
+        apiSecret: "272c5f56222b962",
       };
 
       // Global variables
@@ -946,15 +946,41 @@
       }
 
       // Function to make authenticated API calls
-      async function makeAuthenticatedRequest(url, options = {}) {
+      /*  async function makeAuthenticatedRequest(url, options = {}) {
         if (!csrfToken) {
           await getCSRFToken();
         }
 
         const headers = {
           Authorization: `Basic ${btoa(
-            `${FRAPPE_CONFIG.username}:${FRAPPE_CONFIG.password}`
+            `${FRAPPE_CONFIG.apiKey}:${FRAPPE_CONFIG.apiSecret}`
           )}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...options.headers,
+        };
+
+        if (csrfToken) {
+          headers["X-Frappe-CSRF-Token"] = csrfToken;
+        }
+
+        const requestOptions = {
+          credentials: "include",
+          ...options,
+          headers,
+        };
+
+        return fetch(url, requestOptions);
+      }
+ */
+      // Function to make authenticated API calls (fixed for Frappe)
+      async function makeAuthenticatedRequest(url, options = {}) {
+        if (!csrfToken) {
+          await getCSRFToken();
+        }
+
+        const headers = {
+          Authorization: `token ${FRAPPE_CONFIG.apiKey}:${FRAPPE_CONFIG.apiSecret}`,
           "Content-Type": "application/json",
           Accept: "application/json",
           ...options.headers,
